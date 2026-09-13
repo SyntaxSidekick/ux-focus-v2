@@ -1,0 +1,8 @@
+services:
+  ux-focus:
+    build:
+      context: .
+    image: ux-focus-v2:local
+    ports:
+      - "${UX_FOCUS_PORT:-5173}:80"
+    restart: unless-stopped
