@@ -5,8 +5,13 @@ import type { ScheduleItem } from "./model.ts";
 import { normalizeSchedule } from "./schedule-domain.ts";
 
 export function normalizeLoadedSchedule(value: unknown): ScheduleItem[] | null {
-  const fallbackIds = Array.isArray(value) ? value.map((_, index) => `${Date.now()}-${index}`) : [];
-  return normalizeSchedule(value, fallbackIds);
+  const source = Array.isArray(value)
+    ? value
+    : (value && typeof value === "object" && Array.isArray((value as { schedule?: unknown }).schedule)
+      ? (value as { schedule: unknown[] }).schedule
+      : null);
+  const fallbackIds = Array.isArray(source) ? source.map((_, index) => `${Date.now()}-${index}`) : [];
+  return normalizeSchedule(source, fallbackIds);
 }
 
 export function createScheduleRepository(storage = savedStorage) {

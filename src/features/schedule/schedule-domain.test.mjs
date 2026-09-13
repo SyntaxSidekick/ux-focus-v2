@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeSchedule, getCurrentBlock, getDayProgress, getCompletedCount, getSessionDurationSecs } from './schedule-domain.ts';
+import { normalizeSchedule, addScheduleTask, getCurrentBlock, getDayProgress, getCompletedCount, getSessionDurationSecs } from './schedule-domain.ts';
 import { DEFAULT_SCHEDULE } from './defaults.ts';
 import { parseScheduleImport } from '../import-export/import-schedule.mjs';
 
@@ -27,12 +27,29 @@ test('retains existing validation limits and all-or-nothing acceptance', () => {
   assert.ok(normalizeSchedule([{ ...valid, label: ' ' }], ['a']));
 });
 
+test('details stay optional, normalize when present, and empty values are omitted', () => {
+  const withDetails = normalizeSchedule([{ label: 'Task', start: '09:00', end: '10:00', details: '  Finish docs  ' }], ['a']);
+  const withoutDetails = normalizeSchedule([{ label: 'Task', start: '09:00', end: '10:00' }], ['b']);
+  const emptyDetails = normalizeSchedule([{ label: 'Task', start: '09:00', end: '10:00', details: '   ' }], ['c']);
+  assert.equal(withDetails[0].details, 'Finish docs');
+  assert.equal(withoutDetails[0].details, undefined);
+  assert.equal(emptyDetails[0].details, undefined);
+});
+
+test('adding tasks trims details and keeps no-details tasks compatible', () => {
+  const withDetails = addScheduleTask([], { label: 'With details', start: '09:00', end: '10:00', details: '  Keep this  ', sound: 'deepwork' }, 'with-details');
+  const withoutDetails = addScheduleTask([], { label: 'No details', start: '09:00', end: '10:00', details: '   ', sound: 'deepwork' }, 'without-details');
+  assert.equal(withDetails[0].details, 'Keep this');
+  assert.equal(withoutDetails[0].details, undefined);
+});
+
 test('import parsing feeds domain normalization and export round trips', () => {
-  const parsed = parseScheduleImport('\uFEFF' + JSON.stringify({ schedule: [{ title: ' Task ', startTime: '9:00 AM', endTime: '10:00 AM', sound: 'unknown' }] }));
+  const parsed = parseScheduleImport('\uFEFF' + JSON.stringify({ schedule: [{ title: ' Task ', startTime: '9:00 AM', endTime: '10:00 AM', details: '  Ship layout polish  ', sound: 'unknown' }] }));
   const normalized = normalizeSchedule(parsed, ['unused']);
   assert.equal(normalized[0].label, 'Task');
   assert.equal(normalized[0].start, '09:00');
   assert.equal(normalized[0].startTime, '09:00');
+  assert.equal(normalized[0].details, 'Ship layout polish');
   assert.equal(normalized[0].sound, 'default');
   assert.deepEqual(normalizeSchedule(parseScheduleImport(JSON.stringify(normalized)), []), normalized);
   assert.equal(DEFAULT_SCHEDULE.length, 12);

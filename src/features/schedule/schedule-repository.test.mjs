@@ -20,19 +20,30 @@ test('loads valid saved schedules without writing normalized data on startup', (
   assert.deepEqual(writes, []);
 });
 
+test('loads wrapped schedule payloads used by exported files', () => {
+  const wrapped = JSON.stringify({ schedule: DEFAULT_SCHEDULE });
+  const { repository, writes } = setup(wrapped);
+  assert.deepEqual(repository.load().map(({ title, ...item }) => JSON.parse(JSON.stringify(item))), DEFAULT_SCHEDULE);
+  assert.deepEqual(writes, []);
+});
+
 test('missing and empty-string saves use exact defaults; saved empty arrays stay empty', () => {
   for (const value of [null, '']) assert.equal(setup(value).repository.load(), DEFAULT_SCHEDULE);
   assert.deepEqual(setup('[]').repository.load(), []);
 });
 
 test('legacy aliases normalize without losing metadata, completion or reminder history', () => {
-  const legacy = { id: 'legacy', title: 'Legacy', startTime: '09:00', endTime: '10:00', completed: true, reminderEnabled: false, reminderLastTriggeredDate: '2026-09-12', extra: 17 };
+  const legacy = { id: 'legacy', title: 'Legacy', startTime: '09:00', endTime: '10:00', details: '  Keep this detail  ', completed: true, reminderEnabled: false, reminderLastTriggeredDate: '2026-09-12', extra: 17 };
   const { repository } = setup(JSON.stringify([legacy]));
   const [loaded] = repository.load();
-  for (const [key, value] of Object.entries(legacy)) assert.equal(loaded[key], value);
+  for (const [key, value] of Object.entries(legacy)) {
+    if (key === 'details') continue;
+    assert.equal(loaded[key], value);
+  }
   assert.equal(loaded.start, '09:00');
   assert.equal(loaded.end, '10:00');
   assert.equal(loaded.label, 'Legacy');
+  assert.equal(loaded.details, 'Keep this detail');
 });
 
 test('malformed JSON and invalid schedules protect saves and replacements', () => {
@@ -65,15 +76,18 @@ test('add preserves field shapes and start-time sorting without mutating input',
 
 test('add, complete, uncomplete and delete persist using the compatible schedule key', () => {
   const { repository, writes } = setup('[]');
-  let schedule = addScheduleTask(repository.load(), { label: 'Task', start: '09:00', end: '10:00', sound: 'deepwork' }, 'task');
+  let schedule = addScheduleTask(repository.load(), { label: 'Task', start: '09:00', end: '10:00', details: '  Finish docs  ', sound: 'deepwork' }, 'task');
   repository.save(schedule);
   assert.equal(getCurrentBlock(repository.load()).id, 'task');
+  assert.equal(repository.load()[0].details, 'Finish docs');
   schedule = toggleScheduleTaskComplete(schedule, 'task'); repository.save(schedule);
   assert.equal(getCompletedCount(repository.load()), 1);
   assert.equal(getDayProgress(repository.load()), 1);
   assert.equal(getCurrentBlock(repository.load()), null);
+  assert.equal(repository.load()[0].details, 'Finish docs');
   schedule = toggleScheduleTaskComplete(schedule, 'task'); repository.save(schedule);
   assert.equal(getDayProgress(repository.load()), 0);
+  assert.equal(repository.load()[0].details, 'Finish docs');
   schedule = removeScheduleTask(schedule, 'task'); repository.save(schedule);
   assert.deepEqual(repository.load(), []);
   assert.equal(getCurrentBlock(schedule), null);

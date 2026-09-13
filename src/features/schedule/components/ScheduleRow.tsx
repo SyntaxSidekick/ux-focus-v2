@@ -1,5 +1,7 @@
-import { Bell, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Bell, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import type { ScheduleItem } from "../model.ts";
+import { TaskDetails } from "./TaskDetails.tsx";
 
 export interface ScheduleRowActions {
   onComplete(id: string): void;
@@ -8,11 +10,16 @@ export interface ScheduleRowActions {
 }
 
 export function ScheduleRow({ item, isActive, index, onComplete, onDelete, onToggleReminder }: ScheduleRowActions & { item: ScheduleItem; isActive: boolean; index: number }) {
+  const [expanded, setExpanded] = useState(false);
   const isDone = !!item.completed;
   const isEven = index % 2 === 0;
+  const details = item.details;
+  const hasDetails = Boolean(details);
+  const detailsId = `task-details-${item.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+
   return (
+              <div>
               <div
-                key={item.id}
                 aria-current={isActive ? "time" : undefined}
                 className={`group flex items-center gap-2.5 px-4 py-2.5 transition-all ${
                   isActive
@@ -62,6 +69,20 @@ export function ScheduleRow({ item, isActive, index, onComplete, onDelete, onTog
                   </div>
                 </div>
 
+                {hasDetails && (
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-controls={detailsId}
+                    aria-label={`${expanded ? "Hide" : "Show"} details for ${item.label}`}
+                    title={expanded ? "Hide details" : "Show details"}
+                    onClick={() => setExpanded(value => !value)}
+                    className="p-1 rounded text-muted-foreground/55 hover:text-foreground hover:bg-secondary transition-all flex-shrink-0"
+                  >
+                    {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  </button>
+                )}
+
                 {/* Type dot */}
                 <div className={`w-1 h-1 rounded-full flex-shrink-0 ${
                   item.sound === "deepwork" ? "bg-violet-400/50"
@@ -83,6 +104,8 @@ export function ScheduleRow({ item, isActive, index, onComplete, onDelete, onTog
                 >
                   <Trash2 size={11} />
                 </button>
+              </div>
+              {details && expanded && <TaskDetails id={detailsId} details={details} />}
               </div>
   );
 }

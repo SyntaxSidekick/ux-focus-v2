@@ -2,6 +2,7 @@ export interface ScheduleItem {
   id: string;
   label: string;
   title?: string;
+  details?: string;
   start: string;
   end: string;
   startTime: string;
@@ -15,4 +16,4 @@ export interface ScheduleItem {
 
 export type ScheduleSound = ScheduleItem["sound"];
 
-export type NewTask = Pick<ScheduleItem, "label" | "start" | "end" | "sound">;
+export type NewTask = Pick<ScheduleItem, "label" | "start" | "end" | "details" | "sound">;

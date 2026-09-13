@@ -5,19 +5,24 @@ export function isScheduleSound(value: unknown): value is ScheduleItem["sound"] 
   return value === "deepwork" || value === "break" || value === "default";
 }
 
+const normalizeDetails = (value: unknown) => typeof value === "string" ? value.trim() || undefined : undefined;
+
 export function normalizeScheduleItem(item: unknown, fallbackId: string): ScheduleItem | null {
   if (!item || typeof item !== "object") return null;
   const raw = item as Record<string, unknown>;
+  const { details: _rawDetails, ...rawWithoutDetails } = raw;
   const label = typeof raw.label === "string" ? raw.label : typeof raw.title === "string" ? raw.title : "";
   const start = typeof raw.start === "string" ? raw.start : typeof raw.startTime === "string" ? raw.startTime : "";
   const end = typeof raw.end === "string" ? raw.end : typeof raw.endTime === "string" ? raw.endTime : "";
+  const details = normalizeDetails(raw.details);
   if (!label || !isValidTime(start) || !isValidTime(end)) return null;
 
   return {
-    ...raw,
+    ...rawWithoutDetails,
     id: typeof raw.id === "string" ? raw.id : fallbackId,
     label,
     title: typeof raw.title === "string" ? raw.title : label,
+    ...(details ? { details } : {}),
     start,
     end,
     startTime: typeof raw.startTime === "string" ? raw.startTime : start,
@@ -58,7 +63,16 @@ export function getCompletedCount(schedule: ScheduleItem[]): number {
 }
 
 export function addScheduleTask(schedule: ScheduleItem[], draft: NewTask, id: string): ScheduleItem[] {
-  const item: ScheduleItem = { ...draft, id, title: draft.label, startTime: draft.start, endTime: draft.end };
+  const { details: _draftDetails, ...draftWithoutDetails } = draft;
+  const details = normalizeDetails(draft.details);
+  const item: ScheduleItem = {
+    ...draftWithoutDetails,
+    id,
+    title: draft.label,
+    ...(details ? { details } : {}),
+    startTime: draft.start,
+    endTime: draft.end,
+  };
   return [...schedule, item].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 }
 
